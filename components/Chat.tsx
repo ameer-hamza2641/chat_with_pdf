@@ -35,15 +35,19 @@ const ChatSection = () => {
     setIsLoading(true);
 
     try {
-      // Replace this with your actual Python RAG backend URL
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: input }),
+        body: JSON.stringify({ messages: [...messages, userMessage] }),
       });
 
       const data = await response.json();
-      const aiMessage: Message = { role: "assistant", content: data.answer };
+      console.log(data);
+
+      const aiMessage: Message = {
+        role: "assistant",
+        content: data.content || "Sorry, I couldn't generate a response.",
+      };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       setMessages((prev) => [

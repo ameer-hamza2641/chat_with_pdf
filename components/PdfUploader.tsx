@@ -6,13 +6,24 @@ import { FaFileUpload, FaFilePdf, FaCheckCircle } from "react-icons/fa";
 
 const PdfUploader = () => {
   // Callback when a file is dropped or selected
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = async(acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    // Here is where you would call your upload API
     if (file) {
-      console.log("File ready for RAG processing:", file);
-      // Here is where you would call your upload function to localhost:8000
+      const response = await fetch('api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (response.ok) {
+        console.log("File uploaded successfully");
+      } else {
+        console.error("File upload failed");
+      }
+
     }
-  }, []);
+  };
 
   const { getRootProps, getInputProps, isDragActive, acceptedFiles } =
     useDropzone({
