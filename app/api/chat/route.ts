@@ -19,18 +19,18 @@ console.log('user query :' , userQuery);
     // 1. Initialize Gemini Embeddings & Model
     const embeddings = new GoogleGenerativeAIEmbeddings({
       apiKey: process.env.GOOGLE_API_KEY,
-      modelName: "text-embedding-004",
+      modelName: "gemini-embedding-001",
     });
     /*------ to Know which models are suported for your api key run the following commant in terminal
        curl https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_API_KEY 
     
     --------*/ 
-
     const model = new ChatGoogleGenerativeAI({
       model: "gemini-2.5-flash",
       apiKey: process.env.GOOGLE_API_KEY,
       temperature: 0.2,
       maxRetries: 2,
+      streaming:true,
       safetySettings: [
     {
       category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -55,14 +55,14 @@ console.log('user query :' , userQuery);
      you are a helpful AI assistant for answering questions about the content of a PDF document. Use the following context to provide a detailed and accurate answer.
      If the context does not contain the answer, politely respond that you don't know.
      Answer should be not too much small and not too much long, keep it balanced.
+     make sure to use all the relevant information from the context to provide a comprehensive answer.
 - Write a detailed answer.
 At the end of your answer, list the page numbers you used.
 Answer the question based only on the following context:
 
 Context:
 {context}
-{context}
-Question: {question}
+Question: ${userQuery}
 Answer (with page citations):
     `;
     const prompt = ChatPromptTemplate.fromTemplate(template);
@@ -79,16 +79,29 @@ Answer (with page citations):
       new StringOutputParser(),
     ]);
 
-    // 5. Run the chain
-    const aiResponse = await chain.invoke(userQuery);
-    console.log('ai-response : ' ,aiResponse);
-    return NextResponse.json({ 
-      role: "assistant", 
-      content: aiResponse
+   const stream = await chain.stream(userQuery);
+
+    // Create a ReadableStream to pipe to the client
+    const encoder = new TextEncoder();
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
+      },
     });
 
-  } catch (error: any) {
+    return new Response(readableStream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+      },
+    });
+
+  } catch (error: unknown) {
     console.error("RAG Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-}
+}       

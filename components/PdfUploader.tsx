@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useCallback } from "react";
+import { Loader2 } from "lucide-react";
+import React, { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { FaFileUpload, FaFilePdf, FaCheckCircle } from "react-icons/fa";
 
 const PdfUploader = () => {
+  const [uploaded, setUploaded] = useState('idle'); // 'idle' | 'success' | 'error'
   // Callback when a file is dropped or selected
   const onDrop = async(acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -12,13 +14,16 @@ const PdfUploader = () => {
     formData.append('file', file);
     // Here is where you would call your upload API
     if (file) {
+      setUploaded('loading')
       const response = await fetch('api/upload', {
         method: 'POST',
         body: formData,
       })
       if (response.ok) {
+        setUploaded('success');
         console.log("File uploaded successfully");
       } else {
+        setUploaded('error');
         console.error("File upload failed");
       }
 
@@ -63,7 +68,14 @@ const PdfUploader = () => {
       </div>
 
       {/* Success Feedback: Show the filename once selected */}
-      {acceptedFiles.length > 0 && (
+      {uploaded === 'loading' && (
+        <div className="mt-4 p-4 bg-blue-900/20 border border-blue-800 rounded-lg flex items-center justify-between">
+          <span className="text-sm text-gray-200">Uploading {acceptedFiles[0].name}  <Loader2 className="animate-spin ml-2" size={16} /></span>
+        </div>
+      )
+
+      }
+      {uploaded === 'success' && (
         <div className="mt-4 p-4 bg-green-900/20 border border-green-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FaFilePdf className="text-red-400" />
@@ -74,6 +86,11 @@ const PdfUploader = () => {
           <div className="flex items-center gap-2 text-green-400 text-xs font-bold uppercase">
             <FaCheckCircle /> Ready
           </div>
+        </div>
+      )}
+      {uploaded === 'error' && (
+        <div className="mt-4 p-4 bg-red-900/20 border border-red-800 rounded-lg flex items-center justify-between">
+          <span className="text-sm text-gray-200">Error uploading file : {acceptedFiles[0]?.name ? ` ${acceptedFiles[0].name}` : '' }. Please try again.</span>
         </div>
       )}
     </div>

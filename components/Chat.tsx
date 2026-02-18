@@ -25,43 +25,114 @@ const ChatSection = () => {
     }
   }, [messages, isLoading]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  // const handleSendMessage = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
+  //   const userMessage: Message = { role: "user", content: input };
+  //   setMessages((prev) => [...prev, userMessage]);
+  //   setInput("");
+  //   setIsLoading(true);
 
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
-      });
+  //   try {
+  //     const response = await fetch("/api/chat", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ messages: [...messages, userMessage] }),
+  //     });
 
-      const data = await response.json();
-      console.log(data);
+  //     const data = await response.json();
+  //     console.log(data);
 
-      const aiMessage: Message = {
-        role: "assistant",
-        content: data.content || "Sorry, I couldn't generate a response.",
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Sorry, I ran into an error processing that.",
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
+  //     const aiMessage: Message = {
+  //       role: "assistant",
+  //       content: data.content || "Sorry, I couldn't generate a response.",
+  //     };
+  //     setMessages((prev) => [...prev, aiMessage]);
+  //   } catch (error) {
+  //     setMessages((prev) => [
+  //       ...prev,
+  //       {
+  //         role: "assistant",
+  //         content: "Sorry, I ran into an error processing that.",
+  //       },
+  //     ]);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+const handleSendMessage = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+
+
+  // 1. Initial State Setup
+  const userMessage: Message = { role: "user", content: input };
+  const placeholderMessage: Message = { role: "assistant", content: "" };
+  setMessages((prev) => [...prev, userMessage, placeholderMessage]);
+  setInput("");
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [...messages, userMessage] }),
+    });
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    
+    let buffer = ""; // Stores text waiting to be "typed"
+    let displayedText = ""; // The text currently visible in UI
+    const typingSpeed = 10; // 30ms per character (Decrease to go faster)
+
+    // 2. Typing Timer
+    const interval = setInterval(() => {
+      if (buffer.length > 0) {
+        // Take the first character from the buffer
+        const char = buffer[0];
+        buffer = buffer.slice(1);
+        displayedText += char;
+
+        // Update the UI
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { 
+            role: "assistant", 
+            content: displayedText 
+          };
+          return updated;
+        });
+      }
+    }, typingSpeed);
+
+    // 3. Read the Stream
+    if (!reader) {
+      throw new Error("No response body");
     }
-  };
+    while (true) {
+      const { done, value } = await reader?.read();
+      if (done) {
+        // Stop the interval once the buffer is empty after the stream ends
+        const checkDone = setInterval(() => {
+          if (buffer.length === 0) {
+            clearInterval(interval);
+            clearInterval(checkDone);
+            setIsLoading(false);
+          }
+        }, 100);
+        break;
+      }
+      
+      // Add incoming tokens to the buffer
+      buffer += decoder.decode(value, { stream: true });
+    }
 
+  } catch (error) {
+    console.error("Streaming Error:", error);
+    setIsLoading(false);
+  }
+};
   return (
     <div className="flex flex-col min-h-screen w-full  bg-transparent border border-slate-800 rounded-2xl shadow-xl">
       {/* Header */}
@@ -89,7 +160,7 @@ const ChatSection = () => {
                 {msg.role === "user" ? <User size={16} /> : <Bot size={16} />}
               </div>
               <div
-                className={`p-3 rounded-xl text-sm ${msg.role === "user" ? "bg-blue-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 rounded-tl-none"}`}
+                className={`whitespace-pre-wrap p-3 rounded-xl text-sm ${msg.role === "user" ? "bg-blue-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 rounded-tl-none"}`}
               >
                 {msg.content}
               </div>
