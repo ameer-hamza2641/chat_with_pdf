@@ -18,7 +18,7 @@ export const getAuth = async () => {
     emailAndPassword: {
       enabled: true,
       disableSignUp: false,
-      requireEmailVerification:true,
+      requireEmailVerification:false,
       minPasswordLength: 8,
       maxPasswordLength: 128,
       autoSignIn: true,
@@ -29,39 +29,41 @@ export const getAuth = async () => {
         clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       },
     },
-    plugins: [
-        emailOTP({
-            // This flag tells better-auth to use OTP codes for all verification
-            async sendVerificationOTP({ email, otp, type }, ctx) {
-                await resend.emails.send({
-                    from: "Verify <auth@yourdomain.com>",
-                    to: email,
-                    subject: "Your Verification Code",
-                    html: `Your code is: <b>${otp}</b>. It expires in 10 minutes.`,
-                });
-            },
-        }),
-        nextCookies()
-    ],
-    rateLimit: {
-        enabled: true,
-        window: 60, // 1 minute window
-        max: 100,   // Global max requests
-        customRules: {
-            // Specifically limit the "Send/Resend OTP" endpoint
-            "/email-otp/send-verification-otp": {
-                window: 60, // 1 minute
-                max: 3,     // Max 3 requests per minute per IP
-            },
-            // You can also limit the verification attempts to prevent brute force
-            "/email-otp/verify-email": {
-                window: 60,
-                max: 5,
-            }
-        }
-    }
+    plugins: [nextCookies()],
+    // plugins: [
+    //     emailOTP({
+    //         // This flag tells better-auth to use OTP codes for all verification
+    //         async sendVerificationOTP({ email, otp, type }, ctx) {
+    //             await resend.emails.send({
+    //                 from: "Verify <auth@yourdomain.com>",
+    //                 to: email,
+    //                 subject: "Your Verification Code",
+    //                 html: `Your code is: <b>${otp}</b>. It expires in 10 minutes.`,
+    //             });
+    //         },
+    //     }),
+    //     nextCookies()
+    // ],
+    // rateLimit: {
+    //     enabled: true,
+    //     window: 60, // 1 minute window
+    //     max: 100,   // Global max requests
+    //     customRules: {
+    //         // Specifically limit the "Send/Resend OTP" endpoint
+    //         "/email-otp/send-verification-otp": {
+    //             window: 60, // 1 minute
+    //             max: 3,     // Max 3 requests per minute per IP
+    //         },
+    //         // You can also limit the verification attempts to prevent brute force
+    //         "/email-otp/verify-email": {
+    //             window: 60,
+    //             max: 5,
+    //         }
+    //     }
+    // }
   });
   return authInstance;
 };
 
 export const auth = await getAuth();
+
